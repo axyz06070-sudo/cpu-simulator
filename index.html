@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CPU Scheduler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto bg-white p-8 rounded-lg shadow-lg">
+        <h1 class="text-2xl font-bold mb-6">CPU Simulator</h1>
+        
+        <div class="grid grid-cols-4 gap-2 mb-4">
+            <input id="pid" placeholder="ID" class="border p-2 rounded">
+            <input id="arr" placeholder="Arr" class="border p-2 rounded">
+            <input id="burst" placeholder="Burst" class="border p-2 rounded">
+            <input id="prio" placeholder="Prio" class="border p-2 rounded">
+        </div>
+        <button onclick="addProcess()" class="w-full bg-blue-600 text-white p-2 rounded">Add Process</button>
+        <button onclick="runSimulation()" class="w-full bg-green-600 text-white p-2 rounded mt-2">Run Simulation</button>
+
+        <div class="mt-8">
+            <canvas id="ganttChart"></canvas>
+        </div>
+
+        <table class="w-full mt-8 border-collapse border border-gray-300">
+            <thead><tr class="bg-gray-200"><th class="border p-2">ID</th><th class="border p-2">TAT</th><th class="border p-2">WT</th></tr></thead>
+            <tbody id="resultsTable"></tbody>
+        </table>
+    </div>
+
+    <script>
+        let processes = [];
+        let myChart = null;
+
+        function addProcess() {
+            processes.push({
+                id: document.getElementById('pid').value,
+                arrival: parseInt(document.getElementById('arr').value),
+                burst: parseInt(document.getElementById('burst').value),
+                priority: parseInt(document.getElementById('prio').value) || 0
+            });
+            alert("Added " + document.getElementById('pid').value);
+        }
+
+        async function runSimulation() {
+            const res = await fetch('/calculate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    processes: processes,
+                    algo: document.getElementById('algo').value,
+                    quantum: document.getElementById('quantum').value
+                })
+            });
+            const data = await res.json();
+            
+            // 1. Update Metrics
+            const tbody = document.getElementById('resultsTable');
+            tbody.innerHTML = data.results.map(p => `<tr><td class="border text-center">${p.id}</td><td class="border text-center">${p.tat}</td><td class="border text-center">${p.wt}</td></tr>`).join('');
+
+            // 2. Render Chart
+            if (myChart) myChart.destroy();
+            myChart = new Chart(document.getElementById('ganttChart'), {
+                type: 'bar',
+                data: {
+                    labels: data.gantt.map(p => p.id),
+                    datasets: [{
+                        label: 'Execution Time',
+                        data: data.gantt.map(p => [p.start, p.end]),
+                        backgroundColor: '#3b82f6'
+                    }]
+                },
+                options: { indexAxis: 'y' }
+            });
+        }
+    </script>
+</body>
+</html>
